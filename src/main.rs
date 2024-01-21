@@ -1,38 +1,52 @@
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    sprite::MaterialMesh2dBundle
+};
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, HelloPlugin))
+        .add_plugins((DefaultPlugins, BreakoutPlugin))
         .run();
 }
 
-pub struct HelloPlugin;
+/*
+#[derive(Resource)]
+struct GreetTimer(Timer);
+*/
 
-impl Plugin for HelloPlugin {
+pub struct BreakoutPlugin;
+
+impl Plugin for BreakoutPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(GreetTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
-            .add_systems(Startup, add_people)
-            .add_systems(Update, greet_people);
+        app.add_systems(Startup, setup);
     }
 }
 
+fn setup(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    commands.spawn(Camera2dBundle::default());
+    commands.spawn(MaterialMesh2dBundle {
+        mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
+        transform: Transform::default().with_scale(Vec3::splat(128.)),
+        material: materials.add(ColorMaterial::from(Color::ALICE_BLUE)),
+        ..default()
+    });
+}
+
+/*
 #[derive(Component)]
 struct Person;
 
 #[derive(Component)]
 struct Name(String);
 
-#[derive(Resource)]
-struct GreetTimer(Timer);
-
 fn add_people(mut commands: Commands) {
     commands.spawn((Person, Name("Buzz Lightyear".to_string())));
     commands.spawn((Person, Name("Mario Mario".to_string())));
     commands.spawn((Person, Name("Link".to_string())));
-}
-
-fn hello_world() {
-    println!("Hello world!");
 }
 
 fn greet_people(
@@ -46,12 +60,4 @@ fn greet_people(
         }
     }
 }
-
-fn update_people(mut query: Query<&mut Name, With<Person>>) {
-    for mut name in &mut query {
-        if name.0 == "Link" {
-            name.0 = "Zelda".to_string();
-            break;
-        }
-    }
-}
+*/
