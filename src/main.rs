@@ -3,16 +3,17 @@ use bevy::{
     sprite::MaterialMesh2dBundle
 };
 
+// Give a z value to the ball so it stays on top
+const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 1.0);
+const BALL_SIZE: Vec3 = Vec3::new(30.0, 30.0, 0.0);
+//const BALL_SPEED: f32 = 400.0;
+//const INITIAL_BALL_DIRECTION: Vec2 = Vec2::new(0.5, -0.5);
+
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, BreakoutPlugin))
         .run();
 }
-
-/*
-#[derive(Resource)]
-struct GreetTimer(Timer);
-*/
 
 pub struct BreakoutPlugin;
 
@@ -22,42 +23,32 @@ impl Plugin for BreakoutPlugin {
     }
 }
 
+#[derive(Component)]
+struct Ball;
+
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     commands.spawn(Camera2dBundle::default());
-    commands.spawn(MaterialMesh2dBundle {
-        mesh: meshes.add(Mesh::from(shape::Quad::default())).into(),
-        transform: Transform::default().with_scale(Vec3::splat(128.)),
-        material: materials.add(ColorMaterial::from(Color::ALICE_BLUE)),
+
+    // Create the Ball
+    commands.spawn((MaterialMesh2dBundle {
+        mesh: meshes.add(shape::Circle::default().into()).into(),
+        material: materials.add(ColorMaterial::from(Color::BLUE)),
+        transform: Transform::from_translation(BALL_STARTING_POSITION).with_scale(BALL_SIZE),
         ..default()
-    });
+    },
+    Ball));
 }
 
 /*
-#[derive(Component)]
-struct Person;
+fn generate_blocks(width: u32) -> Vec<MaterialMesh2dBundle> {
+    let num_blocks = 10;
 
-#[derive(Component)]
-struct Name(String);
+    for  
 
-fn add_people(mut commands: Commands) {
-    commands.spawn((Person, Name("Buzz Lightyear".to_string())));
-    commands.spawn((Person, Name("Mario Mario".to_string())));
-    commands.spawn((Person, Name("Link".to_string())));
-}
-
-fn greet_people(
-    time: Res<Time>,
-    mut timer: ResMut<GreetTimer>,
-    query: Query<&Name, With<Person>>
-) {
-    if timer.0.tick(time.delta()).just_finished() {
-        for name in &query {
-            println!("Hello {}!", name.0);
-        }
-    }
 }
 */
+
