@@ -9,6 +9,15 @@ const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 1.0);
 const BALL_SIZE: Vec3 = Vec3::new(30.0, 30.0, 0.0);
 const BALL_SPEED: f32 = 400.0;
 const INITIAL_BALL_DIRECTION: Vec2 = Vec2::new(0.5, -0.5);
+const BALL_COLOR: Color = Color::CYAN;
+
+// Set up wall constants
+const LEFT_WALL: f32 = -450.0;
+const RIGHT_WALL: f32 = 450.0;
+const TOP_WALL: f32 = 300.0;
+const BOTTOM_WALL: f32 = -300.0;
+const WALL_THICKNESS: f32 = 10.0;
+const WALL_COLOR: Color = Color::RED;
 
 fn main() {
     App::new()
@@ -46,6 +55,77 @@ struct Collider;
 #[derive(Event, Default)]
 struct CollisionEvent;
 
+#[derive(Bundle)]
+struct WallBundle {
+    // We need a sprite and a collider for each wall
+    sprite_bundle: SpriteBundle,
+    collider: Collider,
+}
+
+// We will have four walls
+enum WallLocation {
+    Left,
+    Right,
+    Top,
+    Bottom,
+}
+
+impl WallLocation {
+    // Get the position of each wall
+    fn position(&self) -> Vec2 {
+        match self {
+            WallLocation::Left => Vec2::new(LEFT_WALL, 0.),
+            WallLocation::Right => Vec2::new(RIGHT_WALL, 0.),
+            WallLocation::Bottom => Vec2::new(0., BOTTOM_WALL),
+            WallLocation::Top => Vec2::new(0., TOP_WALL),
+        }
+    }
+
+    // Get the size of the area
+    fn size(&self) -> Vec2 {
+        let arena_height = TOP_WALL - BOTTOM_WALL;
+        let arena_width = RIGHT_WALL - LEFT_WALL;
+
+        // Make sure we have a non-zero arena
+        assert!(arena_height > 0.0);
+        assert!(arena_width > 0.0);
+
+        match self {
+            WallLocation::Left | WallLocation::Right => {
+                Vec2::new(WALL_THICKNESS, arena_height + WALL_THICKNESS)
+            }
+            WallLocation::Top | WallLocation::Bottom => {
+                Vec2::new(arena_width + WALL_THICKNESS, WALL_THICKNESS)
+            }
+        }
+    }
+}
+
+impl WallBundle {
+    fn new(location: WallLocation) -> WallBundle {
+        WallBundle {
+            sprite_bundle: SpriteBundle {
+                transform: Transform {
+                    // We need to convert Vec2 to Vec3 to give it a z-ccoordinate
+                    // which is used to determine the order of sprites
+                    translation: location.position().extend(0.0),
+                    // The z-scale of 2d objects needs to be 1.0 or 
+                    // the ordering will be affected
+                    scale: location.size().extend(1.0),
+                    ..default()
+                },
+                sprite: Sprite {
+                    color: WALL_COLOR,
+                    ..default()
+                },
+                ..default()
+            },
+            collider: Collider,
+        }
+    }
+
+}
+
 fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -57,13 +137,19 @@ fn setup(
     commands.spawn(
         (MaterialMesh2dBundle {
             mesh: meshes.add(shape::Circle::default().into()).into(),
-            material: materials.add(ColorMaterial::from(Color::BLUE)),
+            material: materials.add(ColorMaterial::from(BALL_COLOR)),
             transform: Transform::from_translation(BALL_STARTING_POSITION).with_scale(BALL_SIZE),
             ..default()
         },
         Ball,
         Velocity(INITIAL_BALL_DIRECTION.normalize() * BALL_SPEED))
     );
+
+    // Create the walls
+    commands.spawn(WallBundle::new(WallLocation::Left));
+    commands.spawn(WallBundle::new(WallLocation::Right));
+    commands.spawn(WallBundle::new(WallLocation::Top));
+    commands.spawn(WallBundle::new(WallLocation::Bottom));
 }
 
 fn apply_velocity(
