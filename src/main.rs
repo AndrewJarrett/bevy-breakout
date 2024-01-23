@@ -4,6 +4,13 @@ use bevy::{
     sprite::MaterialMesh2dBundle
 };
 
+// Paddle constants
+const PADDLE_SIZE: Vec3 = Vec3::new(120.0, 20.0, 0.0);
+const PADDLE_SPEED: f32 = 500.0;
+const GAP_BETWEEN_PADDLE_AND_FLOOR: f32 = 60.0;
+const PADDLE_PADDING: f32 = 10.0; // How close paddle can get to the wall
+const PADDLE_COLOR: Color = Color::LIME_GREEN;
+
 // Give a z value to the ball so it stays on top
 const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 1.0);
 const BALL_SIZE: Vec3 = Vec3::new(30.0, 30.0, 0.0);
@@ -36,7 +43,8 @@ impl Plugin for BreakoutPlugin {
                 FixedUpdate,
                 (
                     apply_velocity,
-                    check_collisions
+                    move_paddle,
+                    check_collisions,
                 ).chain()
             )
             .add_systems(Update, bevy::window::close_on_esc);
@@ -45,6 +53,9 @@ impl Plugin for BreakoutPlugin {
 
 #[derive(Component)]
 struct Ball;
+
+#[derive(Component)]
+struct Paddle;
 
 #[derive(Component, Deref, DerefMut)]
 struct Velocity(Vec2);
@@ -145,6 +156,26 @@ fn setup(
         Velocity(INITIAL_BALL_DIRECTION.normalize() * BALL_SPEED))
     );
 
+    // Create the Paddle
+    let paddle_y = BOTTOM_WALL + GAP_BETWEEN_PADDLE_AND_FLOOR;
+
+    commands.spawn((
+        SpriteBundle {
+            transform: Transform {
+                translation: Vec3::new(0.0, paddle_y, 0.0),
+                scale: PADDLE_SIZE,
+                ..default()
+            },
+            sprite: Sprite {
+                color: PADDLE_COLOR,
+                ..default()
+            },
+            ..default()
+        },
+        Paddle,
+        Collider,
+    ));
+
     // Create the walls
     commands.spawn(WallBundle::new(WallLocation::Left));
     commands.spawn(WallBundle::new(WallLocation::Right));
@@ -206,6 +237,31 @@ fn check_collisions(
         }
     }
 
+}
+
+fn move_paddle(
+    mut paddle_query: Query<&mut Transform, With<Paddle>>,
+    keys: Res<Input<KeyCode>>,
+    time: Res<Time>,
+) {
+    let mut paddle_transform = paddle_query.single_mut();
+    let mut direction = 0.0;
+
+    if keys.pressed(KeyCode::Left) { 
+        direction -= 1.0;
+    }
+
+    if keys.pressed(KeyCode::Right) {
+        direction += 1.0;
+    }
+
+    let new_paddle_position = paddle_transform.translation.x + direction * PADDLE_SPEED * time.delta_seconds();
+
+    // Make sure paddle stops before each wall
+    let left_bound = LEFT_WALL + WALL_THICKNESS / 2.0 + PADDLE_SIZE.x / 2.0 + PADDLE_PADDING;
+    let right_bound = RIGHT_WALL - WALL_THICKNESS / 2.0 - PADDLE_SIZE.x / 2.0 - PADDLE_PADDING;
+
+    paddle_transform.translation.x = new_paddle_position.clamp(left_bound, right_bound);
 }
 
 /*
