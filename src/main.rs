@@ -210,15 +210,16 @@ fn apply_velocity(
 }
 
 fn check_collisions(
+    mut commands: Commands,
     mut ball_query: Query<(&mut Velocity, &Transform), With<Ball>>,
-    collider_query: Query<(Entity, &Transform), With<Collider>>,
+    collider_query: Query<(Entity, &Transform, Option<&Block>), With<Collider>>,
     mut collision_events: EventWriter<CollisionEvent>,
 ) {
     let (mut ball_velocity, ball_transform) = ball_query.single_mut();
     let ball_size = ball_transform.scale.truncate();
 
     // Check for a collision
-    for (_collider_entity, transform) in &collider_query {
+    for (collider_entity, transform, maybe_block) in &collider_query {
         let collision = collide(
             ball_transform.translation,
             ball_size,
@@ -229,6 +230,11 @@ fn check_collisions(
         if let Some(collision) = collision {
             // Send a collision event so other systems can react to it
             collision_events.send_default();
+
+            // Blocks need to disappear when hit
+            if maybe_block.is_some() {
+                commands.entity(collider_entity).despawn();
+            }
 
             // Reflect the ball when it collides
             let mut reflect_x = false;
