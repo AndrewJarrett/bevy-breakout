@@ -26,6 +26,16 @@ const BOTTOM_WALL: f32 = -300.0;
 const WALL_THICKNESS: f32 = 10.0;
 const WALL_COLOR: Color = Color::RED;
 
+// Set up blocks
+const BLOCK_SIZE: Vec2 = Vec2::new(100.0, 30.0);
+// Exact values
+const GAP_BETWEEN_PADDLE_AND_BLOCKS: f32 = 270.0;
+const GAP_BETWEEN_BLOCKS: f32 = 5.0;
+// These are lower bounds that are used as we compute the # of blocks
+const GAP_BETWEEN_BLOCKS_AND_CEILING: f32 = 20.0;
+const GAP_BETWEEN_BLOCKS_AND_SIDES: f32 = 20.0;
+const BLOCK_COLOR: Color = Color::PINK;
+
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, BreakoutPlugin))
@@ -56,6 +66,9 @@ struct Ball;
 
 #[derive(Component)]
 struct Paddle;
+
+#[derive(Component)]
+struct Block;
 
 #[derive(Component, Deref, DerefMut)]
 struct Velocity(Vec2);
@@ -181,6 +194,9 @@ fn setup(
     commands.spawn(WallBundle::new(WallLocation::Right));
     commands.spawn(WallBundle::new(WallLocation::Top));
     commands.spawn(WallBundle::new(WallLocation::Bottom));
+
+    // Generate all the blocks
+    generate_blocks(commands, paddle_y);
 }
 
 fn apply_velocity(
@@ -264,12 +280,56 @@ fn move_paddle(
     paddle_transform.translation.x = new_paddle_position.clamp(left_bound, right_bound);
 }
 
-/*
-fn generate_blocks(width: u32) -> Vec<MaterialMesh2dBundle> {
-    let num_blocks = 10;
+fn generate_blocks(mut commands: Commands, paddle_y: f32) {
+    let total_width_of_blocks = (RIGHT_WALL - LEFT_WALL) - 2.0 * GAP_BETWEEN_BLOCKS_AND_SIDES;
+    let bottom_edge_of_blocks = paddle_y + GAP_BETWEEN_PADDLE_AND_BLOCKS;
+    let total_height_of_blocks = TOP_WALL - bottom_edge_of_blocks - GAP_BETWEEN_BLOCKS_AND_CEILING;
 
-    for  
+    assert!(total_width_of_blocks > 0.0);
+    assert!(total_height_of_blocks > 0.0);
 
+    // Given our space available, compute number of rows and columns that will fit
+    let n_columns = (total_width_of_blocks / (BLOCK_SIZE.x + GAP_BETWEEN_BLOCKS)).floor() as usize;
+    let n_rows = (total_height_of_blocks / (BLOCK_SIZE.y + GAP_BETWEEN_BLOCKS)).floor() as usize;
+    let n_vertical_gaps = n_columns - 1;
+
+    // Because we need to round the # of columns, the space on the top and 
+    // sides of the blocks is only a lower bound, not an exact value
+    let center_of_blocks = (LEFT_WALL + RIGHT_WALL) / 2.0;
+    let left_edge_of_blocks = center_of_blocks
+        // Space taken up by the blocks
+        - (n_columns as f32 / 2.0 * BLOCK_SIZE.x)
+        // Space taken up by the gaps
+        - (n_vertical_gaps as f32 / 2.0 * GAP_BETWEEN_BLOCKS);
+
+    let offset_x = left_edge_of_blocks + BLOCK_SIZE.x / 2.0;
+    let offset_y = bottom_edge_of_blocks + BLOCK_SIZE.y / 2.0;
+
+    for row in 0..n_rows {
+        for column in 0..n_columns {
+            let block_position = Vec2::new(
+                offset_x + column as f32 * (BLOCK_SIZE.x + GAP_BETWEEN_BLOCKS),
+                offset_y + row as f32 * (BLOCK_SIZE.y + GAP_BETWEEN_BLOCKS)
+            );
+
+            // Create the block
+            commands.spawn((
+                SpriteBundle {
+                    sprite: Sprite {
+                        color: BLOCK_COLOR,
+                        ..default()
+                    },
+                    transform: Transform {
+                        translation: block_position.extend(0.0),
+                        scale: Vec3::new(BLOCK_SIZE.x, BLOCK_SIZE.y, 1.0),
+                        ..default()
+                    },
+                    ..default()
+                },
+                Block,
+                Collider
+            ));
+        }
+    }
 }
-*/
 
