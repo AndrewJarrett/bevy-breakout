@@ -18,6 +18,7 @@ const BALL_SIZE: Vec3 = Vec3::new(30.0, 30.0, 0.0);
 const BALL_SPEED: f32 = 400.0;
 const INITIAL_BALL_DIRECTION: Vec2 = Vec2::new(0.5, -0.5);
 const BALL_COLOR: Color = Color::CYAN;
+const BALL_VELOCITY_INCREASE: f32 = 10.0;
 
 // Set up wall constants
 const LEFT_WALL: f32 = -450.0;
@@ -286,6 +287,10 @@ fn check_collisions(
             if maybe_block.is_some() {
                 scoreboard.score += 1;
                 commands.entity(collider_entity).despawn();
+
+                // Increase the ball velocity
+                ball_velocity.x += BALL_VELOCITY_INCREASE;
+                ball_velocity.y += BALL_VELOCITY_INCREASE;
             }
 
             // Reflect the ball when it collides
