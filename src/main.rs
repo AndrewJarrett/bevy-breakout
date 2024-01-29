@@ -10,6 +10,7 @@ const PADDLE_SPEED: f32 = 500.0;
 const GAP_BETWEEN_PADDLE_AND_FLOOR: f32 = 60.0;
 const PADDLE_PADDING: f32 = 10.0; // How close paddle can get to the wall
 const PADDLE_COLOR: Color = Color::LIME_GREEN;
+const PADDLE_Y: f32 = BOTTOM_WALL + GAP_BETWEEN_PADDLE_AND_FLOOR;
 
 // Give a z value to the ball so it stays on top
 const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 1.0);
@@ -55,6 +56,7 @@ impl Plugin for BreakoutPlugin {
                     apply_velocity,
                     move_paddle,
                     check_collisions,
+                    check_blocks,
                 ).chain()
             )
             .add_systems(Update, bevy::window::close_on_esc);
@@ -78,13 +80,6 @@ struct Collider;
 
 #[derive(Event, Default)]
 struct CollisionEvent;
-
-#[derive(Bundle)]
-struct WallBundle {
-    // We need a sprite and a collider for each wall
-    sprite_bundle: SpriteBundle,
-    collider: Collider,
-}
 
 // We will have four walls
 enum WallLocation {
@@ -123,6 +118,13 @@ impl WallLocation {
             }
         }
     }
+}
+
+#[derive(Bundle)]
+struct WallBundle {
+    // We need a sprite and a collider for each wall
+    sprite_bundle: SpriteBundle,
+    collider: Collider,
 }
 
 impl WallBundle {
@@ -170,12 +172,10 @@ fn setup(
     );
 
     // Create the Paddle
-    let paddle_y = BOTTOM_WALL + GAP_BETWEEN_PADDLE_AND_FLOOR;
-
     commands.spawn((
         SpriteBundle {
             transform: Transform {
-                translation: Vec3::new(0.0, paddle_y, 0.0),
+                translation: Vec3::new(0.0, PADDLE_Y, 0.0),
                 scale: PADDLE_SIZE,
                 ..default()
             },
@@ -196,7 +196,7 @@ fn setup(
     commands.spawn(WallBundle::new(WallLocation::Bottom));
 
     // Generate all the blocks
-    generate_blocks(commands, paddle_y);
+    generate_blocks(commands);
 }
 
 fn apply_velocity(
@@ -261,6 +261,23 @@ fn check_collisions(
 
 }
 
+fn check_blocks(
+    commands: Commands,
+    block_query: Query<&Block>
+) {
+    let mut has_blocks: bool = false;
+
+    for _block in &block_query {
+        has_blocks = true; 
+        break;
+    }
+
+    if !has_blocks {
+        // If we have destroyed all blocks, regenerate them
+        generate_blocks(commands);
+    }
+}
+
 fn move_paddle(
     mut paddle_query: Query<&mut Transform, With<Paddle>>,
     keys: Res<Input<KeyCode>>,
@@ -286,9 +303,9 @@ fn move_paddle(
     paddle_transform.translation.x = new_paddle_position.clamp(left_bound, right_bound);
 }
 
-fn generate_blocks(mut commands: Commands, paddle_y: f32) {
+fn generate_blocks(mut commands: Commands) {
     let total_width_of_blocks = (RIGHT_WALL - LEFT_WALL) - 2.0 * GAP_BETWEEN_BLOCKS_AND_SIDES;
-    let bottom_edge_of_blocks = paddle_y + GAP_BETWEEN_PADDLE_AND_BLOCKS;
+    let bottom_edge_of_blocks = PADDLE_Y + GAP_BETWEEN_PADDLE_AND_BLOCKS;
     let total_height_of_blocks = TOP_WALL - bottom_edge_of_blocks - GAP_BETWEEN_BLOCKS_AND_CEILING;
 
     assert!(total_width_of_blocks > 0.0);
