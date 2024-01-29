@@ -37,6 +37,14 @@ const GAP_BETWEEN_BLOCKS_AND_CEILING: f32 = 20.0;
 const GAP_BETWEEN_BLOCKS_AND_SIDES: f32 = 20.0;
 const BLOCK_COLOR: Color = Color::PINK;
 
+// Scoreboard
+const SCOREBOARD_FONT_SIZE: f32 = 40.0;
+const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
+const TEXT_COLOR: Color = Color::WHITE;
+const SCORE_COLOR: Color = Color::GREEN;
+
+const BACKGROUND_COLOR: Color = Color::GRAY;
+
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, BreakoutPlugin))
@@ -49,6 +57,8 @@ impl Plugin for BreakoutPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_event::<CollisionEvent>()
+            .insert_resource(Scoreboard { score: 0 })
+            .insert_resource(ClearColor(BACKGROUND_COLOR))
             .add_systems(Startup, setup)
             .add_systems(
                 FixedUpdate,
@@ -56,6 +66,7 @@ impl Plugin for BreakoutPlugin {
                     apply_velocity,
                     move_paddle,
                     check_collisions,
+                    update_scoreboard,
                     check_blocks,
                 ).chain()
             )
@@ -80,6 +91,11 @@ struct Collider;
 
 #[derive(Event, Default)]
 struct CollisionEvent;
+
+#[derive(Resource)]
+struct Scoreboard {
+    score: usize,
+}
 
 // We will have four walls
 enum WallLocation {
@@ -189,6 +205,31 @@ fn setup(
         Collider,
     ));
 
+    // Add scoreboard
+    commands.spawn(
+        TextBundle::from_sections([
+            TextSection::new(
+                "Score: ",
+                TextStyle {
+                    font_size: SCOREBOARD_FONT_SIZE,
+                    color: TEXT_COLOR,
+                    ..default()
+                },
+            ),
+            TextSection::from_style(TextStyle {
+                font_size: SCOREBOARD_FONT_SIZE,
+                color: SCORE_COLOR,
+                ..default()
+            }),
+        ])
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            top: SCOREBOARD_TEXT_PADDING,
+            left: SCOREBOARD_TEXT_PADDING,
+            ..default()
+        }),
+    );
+
     // Create the walls
     commands.spawn(WallBundle::new(WallLocation::Left));
     commands.spawn(WallBundle::new(WallLocation::Right));
@@ -209,8 +250,18 @@ fn apply_velocity(
     }
 }
 
+fn update_scoreboard(
+    scoreboard: Res<Scoreboard>,
+    mut query: Query<&mut Text>,
+) {
+    let mut text = query.single_mut();
+    text.sections[1].value = scoreboard.score.to_string();
+}
+
+
 fn check_collisions(
     mut commands: Commands,
+    mut scoreboard: ResMut<Scoreboard>,
     mut ball_query: Query<(&mut Velocity, &Transform), With<Ball>>,
     collider_query: Query<(Entity, &Transform, Option<&Block>), With<Collider>>,
     mut collision_events: EventWriter<CollisionEvent>,
@@ -233,6 +284,7 @@ fn check_collisions(
 
             // Blocks need to disappear when hit
             if maybe_block.is_some() {
+                scoreboard.score += 1;
                 commands.entity(collider_entity).despawn();
             }
 
