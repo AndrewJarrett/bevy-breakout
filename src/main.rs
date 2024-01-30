@@ -1,8 +1,14 @@
 use bevy::{
     prelude::*,
+    core_pipeline::{
+        bloom::{BloomCompositeMode, BloomSettings},
+        tonemapping::Tonemapping
+    },
+    input::common_conditions::input_toggle_active,
     sprite::collide_aabb::{collide, Collision},
     sprite::MaterialMesh2dBundle
 };
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 // Paddle constants
 const PADDLE_SIZE: Vec3 = Vec3::new(120.0, 20.0, 0.0);
@@ -44,11 +50,14 @@ const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
 const TEXT_COLOR: Color = Color::WHITE;
 const SCORE_COLOR: Color = Color::GREEN;
 
-const BACKGROUND_COLOR: Color = Color::GRAY;
+const BACKGROUND_COLOR: Color = Color::BLACK;
 
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, BreakoutPlugin))
+        .add_plugins(
+            WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::Grave))
+        )
         .run();
 }
 
@@ -174,7 +183,25 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn((
+        Camera2dBundle {
+            camera: Camera {
+                hdr: true, // Required for bloom
+                ..default()
+            },
+            tonemapping: Tonemapping::TonyMcMapface, // Use tonemapping that desaturates to white
+            ..default()
+        },
+        // Enable bloom for the camera
+        BloomSettings {
+            intensity: 0.3,
+            low_frequency_boost: 3.0,
+            low_frequency_boost_curvature: 0.3,
+            high_pass_frequency: 0.3,
+            composite_mode: BloomCompositeMode::Additive,
+            ..default()
+        }
+    ));
 
     // Create the Ball
     commands.spawn(
@@ -185,8 +212,9 @@ fn setup(
             ..default()
         },
         Ball,
-        Velocity(INITIAL_BALL_DIRECTION.normalize() * BALL_SPEED))
-    );
+        Velocity(INITIAL_BALL_DIRECTION.normalize() * BALL_SPEED),
+        Name::new("Ball")
+    ));
 
     // Create the Paddle
     commands.spawn((
@@ -204,10 +232,11 @@ fn setup(
         },
         Paddle,
         Collider,
+        Name::new("Paddle")
     ));
 
     // Add scoreboard
-    commands.spawn(
+    commands.spawn((
         TextBundle::from_sections([
             TextSection::new(
                 "Score: ",
@@ -229,13 +258,18 @@ fn setup(
             left: SCOREBOARD_TEXT_PADDING,
             ..default()
         }),
-    );
+        Name::new("Scoreboard")
+    ));
 
     // Create the walls
-    commands.spawn(WallBundle::new(WallLocation::Left));
-    commands.spawn(WallBundle::new(WallLocation::Right));
-    commands.spawn(WallBundle::new(WallLocation::Top));
-    commands.spawn(WallBundle::new(WallLocation::Bottom));
+    commands.spawn((WallBundle::new(WallLocation::Left),
+        Name::new("Left Wall")));
+    commands.spawn((WallBundle::new(WallLocation::Right),
+        Name::new("Right Wall")));
+    commands.spawn((WallBundle::new(WallLocation::Top),
+        Name::new("Top Wall")));
+    commands.spawn((WallBundle::new(WallLocation::Bottom),
+        Name::new("Bottom Wall")));
 
     // Generate all the blocks
     generate_blocks(commands);
@@ -407,7 +441,8 @@ fn generate_blocks(mut commands: Commands) {
                     ..default()
                 },
                 Block,
-                Collider
+                Collider,
+                Name::new("Block")
             ));
         }
     }
