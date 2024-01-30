@@ -8,7 +8,10 @@ use bevy::{
     sprite::collide_aabb::{collide, Collision},
     sprite::MaterialMesh2dBundle
 };
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_inspector_egui::quick::{
+    WorldInspectorPlugin,
+    ResourceInspectorPlugin
+};
 
 // Paddle constants
 const PADDLE_SIZE: Vec3 = Vec3::new(120.0, 20.0, 0.0);
@@ -49,6 +52,7 @@ const SCOREBOARD_FONT_SIZE: f32 = 40.0;
 const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
 const TEXT_COLOR: Color = Color::WHITE;
 const SCORE_COLOR: Color = Color::GREEN;
+const HEALTH_DECREMENT: usize = 5;
 
 const BACKGROUND_COLOR: Color = Color::BLACK;
 
@@ -56,7 +60,14 @@ fn main() {
     App::new()
         .add_plugins((DefaultPlugins, BreakoutPlugin))
         .add_plugins(
-            WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::Grave))
+            WorldInspectorPlugin::default().run_if(
+                input_toggle_active(true, KeyCode::Grave)
+            )
+        )
+        .add_plugins(
+            ResourceInspectorPlugin::<Scoreboard>::default().run_if(
+                input_toggle_active(true, KeyCode::R)
+            )
         )
         .run();
 }
@@ -67,7 +78,10 @@ impl Plugin for BreakoutPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_event::<CollisionEvent>()
-            .insert_resource(Scoreboard { score: 0 })
+            .insert_resource(Scoreboard {
+                score: 0,
+                health: 100,
+            })
             .insert_resource(ClearColor(BACKGROUND_COLOR))
             .add_systems(Startup, setup)
             .add_systems(
@@ -78,6 +92,7 @@ impl Plugin for BreakoutPlugin {
                     check_collisions,
                     update_scoreboard,
                     check_blocks,
+                    check_health,
                 ).chain()
             )
             .add_systems(Update, bevy::window::close_on_esc);
@@ -93,7 +108,7 @@ struct Paddle;
 #[derive(Component)]
 struct Block;
 
-#[derive(Component, Deref, DerefMut)]
+#[derive(Component, Deref, DerefMut, Reflect)]
 struct Velocity(Vec2);
 
 #[derive(Component)]
@@ -102,9 +117,11 @@ struct Collider;
 #[derive(Event, Default)]
 struct CollisionEvent;
 
-#[derive(Resource)]
+#[derive(Resource, Reflect, Default)]
+#[reflect(Resource)]
 struct Scoreboard {
     score: usize,
+    health: usize,
 }
 
 // We will have four walls
@@ -336,7 +353,10 @@ fn check_collisions(
                 Collision::Left => reflect_x = ball_velocity.x > 0.0,
                 Collision::Right => reflect_x = ball_velocity.x < 0.0,
                 Collision::Top => reflect_y = ball_velocity.y < 0.0,
-                Collision::Bottom => reflect_y = ball_velocity.y > 0.0,
+                Collision::Bottom => {
+                    reflect_y = ball_velocity.y > 0.0;
+                    scoreboard.health -= HEALTH_DECREMENT;
+                },
                 Collision::Inside => {}
             }
 
@@ -369,6 +389,15 @@ fn check_blocks(
     }
 }
 
+fn check_health(
+    scoreboard: Res<Scoreboard>
+) {
+    if scoreboard.health <= 0 {
+        // Game over!
+        panic!("You died!");
+    }
+}
+        
 fn move_paddle(
     mut paddle_query: Query<&mut Transform, With<Paddle>>,
     keys: Res<Input<KeyCode>>,
