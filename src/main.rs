@@ -124,7 +124,13 @@ struct Scoreboard {
     health: usize,
 }
 
+#[derive(Component)]
+struct Wall {
+    location: WallLocation,
+}
+
 // We will have four walls
+#[derive(PartialEq)]
 enum WallLocation {
     Left,
     Right,
@@ -167,6 +173,7 @@ impl WallLocation {
 struct WallBundle {
     // We need a sprite and a collider for each wall
     sprite_bundle: SpriteBundle,
+    wall: Wall,
     collider: Collider,
 }
 
@@ -189,10 +196,12 @@ impl WallBundle {
                 },
                 ..default()
             },
+            wall: Wall {
+                location: location,
+            },
             collider: Collider,
         }
     }
-
 }
 
 fn setup(
@@ -315,14 +324,14 @@ fn check_collisions(
     mut commands: Commands,
     mut scoreboard: ResMut<Scoreboard>,
     mut ball_query: Query<(&mut Velocity, &Transform), With<Ball>>,
-    collider_query: Query<(Entity, &Transform, Option<&Block>), With<Collider>>,
+    collider_query: Query<(Entity, &Transform, Option<&Block>, Option<&Wall>), With<Collider>>,
     mut collision_events: EventWriter<CollisionEvent>,
 ) {
     let (mut ball_velocity, ball_transform) = ball_query.single_mut();
     let ball_size = ball_transform.scale.truncate();
 
     // Check for a collision
-    for (collider_entity, transform, maybe_block) in &collider_query {
+    for (collider_entity, transform, maybe_block, maybe_wall) in &collider_query {
         let collision = collide(
             ball_transform.translation,
             ball_size,
@@ -333,6 +342,12 @@ fn check_collisions(
         if let Some(collision) = collision {
             // Send a collision event so other systems can react to it
             collision_events.send_default();
+
+            // Decrease health if the ball hits the bottom wall
+            if maybe_wall.is_some() && 
+                maybe_wall.unwrap().location == WallLocation::Bottom {
+                scoreboard.health -= HEALTH_DECREMENT;
+            }
 
             // Blocks need to disappear when hit
             if maybe_block.is_some() {
@@ -353,10 +368,7 @@ fn check_collisions(
                 Collision::Left => reflect_x = ball_velocity.x > 0.0,
                 Collision::Right => reflect_x = ball_velocity.x < 0.0,
                 Collision::Top => reflect_y = ball_velocity.y < 0.0,
-                Collision::Bottom => {
-                    reflect_y = ball_velocity.y > 0.0;
-                    scoreboard.health -= HEALTH_DECREMENT;
-                },
+                Collision::Bottom => reflect_y = ball_velocity.y > 0.0,
                 Collision::Inside => {}
             }
 
