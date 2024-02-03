@@ -26,7 +26,7 @@ const BALL_STARTING_POSITION: Vec3 = Vec3::new(0.0, -50.0, 1.0);
 const BALL_SIZE: Vec3 = Vec3::new(30.0, 30.0, 0.0);
 const BALL_SPEED: f32 = 400.0;
 const INITIAL_BALL_DIRECTION: Vec2 = Vec2::new(0.5, -0.5);
-const BALL_COLOR: Color = Color::CYAN;
+const BALL_COLOR: Color = Color::rgba(0.0, 0.5, 1.0, 1.0);
 const BALL_VELOCITY_INCREASE: f32 = 10.0;
 
 // Set up wall constants
@@ -53,6 +53,7 @@ const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
 const TEXT_COLOR: Color = Color::WHITE;
 const SCORE_COLOR: Color = Color::GREEN;
 const HEALTH_DECREMENT: usize = 5;
+static HEALTH_COLOR: Color = Color::rgb(0.0, 1.0, 0.0);
 
 const BACKGROUND_COLOR: Color = Color::BLACK;
 
@@ -108,7 +109,7 @@ struct Paddle;
 #[derive(Component)]
 struct Block;
 
-#[derive(Component, Deref, DerefMut, Reflect)]
+#[derive(Component, Deref, DerefMut)]
 struct Velocity(Vec2);
 
 #[derive(Component)]
@@ -197,7 +198,7 @@ impl WallBundle {
                 ..default()
             },
             wall: Wall {
-                location: location,
+                location,
             },
             collider: Collider,
         }
@@ -220,8 +221,8 @@ fn setup(
         },
         // Enable bloom for the camera
         BloomSettings {
-            intensity: 0.3,
-            low_frequency_boost: 3.0,
+            intensity: 0.5,
+            low_frequency_boost: 2.0,
             low_frequency_boost_curvature: 0.3,
             high_pass_frequency: 0.3,
             composite_mode: BloomCompositeMode::Additive,
@@ -277,11 +278,32 @@ fn setup(
                 color: SCORE_COLOR,
                 ..default()
             }),
+            TextSection::new(
+                "\nHealth: ",
+                TextStyle {
+                    font_size: SCOREBOARD_FONT_SIZE,
+                    color: TEXT_COLOR,
+                    ..default()
+                },
+            ),
+            TextSection::from_style(TextStyle {
+                font_size: SCOREBOARD_FONT_SIZE,
+                color: HEALTH_COLOR,
+                ..default()
+            }),
         ])
         .with_style(Style {
             position_type: PositionType::Absolute,
             top: SCOREBOARD_TEXT_PADDING,
             left: SCOREBOARD_TEXT_PADDING,
+            /*
+            max_width: Val::Px(320.0),
+            display: Display::Flex,
+            justify_content: JustifyContent::Start,
+            align_content: AlignContent::Start,
+            flex_wrap: FlexWrap::Wrap,
+            flex_direction: FlexDirection::Row,
+            */
             ..default()
         }),
         Name::new("Scoreboard")
@@ -317,6 +339,7 @@ fn update_scoreboard(
 ) {
     let mut text = query.single_mut();
     text.sections[1].value = scoreboard.score.to_string();
+    text.sections[3].value = scoreboard.health.to_string();
 }
 
 
