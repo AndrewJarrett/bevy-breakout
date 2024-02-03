@@ -296,14 +296,6 @@ fn setup(
             position_type: PositionType::Absolute,
             top: SCOREBOARD_TEXT_PADDING,
             left: SCOREBOARD_TEXT_PADDING,
-            /*
-            max_width: Val::Px(320.0),
-            display: Display::Flex,
-            justify_content: JustifyContent::Start,
-            align_content: AlignContent::Start,
-            flex_wrap: FlexWrap::Wrap,
-            flex_direction: FlexDirection::Row,
-            */
             ..default()
         }),
         Name::new("Scoreboard")
@@ -338,8 +330,24 @@ fn update_scoreboard(
     mut query: Query<&mut Text>,
 ) {
     let mut text = query.single_mut();
+    let health: f32 = scoreboard.health as f32;
     text.sections[1].value = scoreboard.score.to_string();
     text.sections[3].value = scoreboard.health.to_string();
+
+    // Fade color from green to red as health decreases
+    let red: f32;
+    let green: f32;
+    if health >= 50.0 {
+        red = (1.0 - health/100.0) * 2.0;
+        green = 1.0;
+    }
+    else {
+        red = 1.0 - health/100.0;
+        green = health/100.0 / 2.0;
+    }
+
+    let new_color = Color::rgb(red, green, 0.0);
+    text.sections[3].style.color = new_color;
 }
 
 
