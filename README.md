@@ -2,14 +2,14 @@ This is a personal experiment learning the Bevy game engine and building a "Brea
 
 The goals I have for this repo is just to be a fun playground to learn more about Bevy, ECS as a design pattern, and 2D and 3D game fundamentals.
 
-Current functionality includes:
+# Current Functionality
 * Basic breakout game functions
 * Increasing ball velocity as more blocks are broken
 * Scoreboard with health display (-5 health every time the ball hits the bottom wall)
 * Implements Bloom to add some old school "glow" to the game
 * Splash and start menu added before launching the game
 
-Ideas for future enhancements:
+# Possible Future Enhancements
 * "Power up" blocks that can affect game mechanics like:
   * Slow down the ball velocity
   * Increase paddle speed
