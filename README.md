@@ -1,5 +1,7 @@
+# What is This?
 This is a personal experiment learning the Bevy game engine and building a "Breakout" based clone as a way to apply some concepts. Example code was used from the great Bevy examples in the Bevy repo and cobbled together. 
 
+# Why?
 The goals I have for this repo is just to be a fun playground to learn more about Bevy, ECS as a design pattern, and 2D and 3D game fundamentals.
 
 # Current Functionality
