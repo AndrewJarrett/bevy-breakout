@@ -12,6 +12,7 @@ The goals I have for this repo is just to be a fun playground to learn more abou
 * Splash and start menu added before launching the game
 
 # Possible Future Enhancements
+* Export this to the web and serve up on GitHub pages
 * "Power up" blocks that can affect game mechanics like:
   * Slow down the ball velocity
   * Increase paddle speed
