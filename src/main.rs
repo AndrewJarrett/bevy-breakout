@@ -9,6 +9,7 @@ use bevy::{
         tonemapping::Tonemapping
     },
     input::common_conditions::input_toggle_active,
+    window::{Window, WindowMode, Cursor, CursorGrabMode, PresentMode},
 };
 use bevy_inspector_egui::quick::{
     WorldInspectorPlugin,
@@ -46,8 +47,21 @@ pub struct Volume(u32);
 
 fn main() {
     App::new()
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: String::from("Bevy Breakout!"),
+                mode: WindowMode::Fullscreen,
+                present_mode: PresentMode::AutoVsync,
+                cursor: Cursor {
+                    grab_mode: CursorGrabMode::Confined,
+                    ..default()
+                },
+                ..default()
+            }),
+            ..default()
+        }))
         .add_plugins((
-            DefaultPlugins, SplashPlugin, MenuPlugin, BreakoutPlugin, 
+            SplashPlugin, MenuPlugin, BreakoutPlugin, 
             WorldInspectorPlugin::default().run_if(
                 input_toggle_active(false, KeyCode::Grave)
             ),
