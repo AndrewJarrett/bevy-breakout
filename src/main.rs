@@ -9,7 +9,7 @@ use bevy::{
         tonemapping::Tonemapping
     },
     input::common_conditions::input_toggle_active,
-    window::{Window, WindowMode, Cursor, CursorGrabMode, PresentMode},
+    window::{Window, WindowMode, WindowTheme, Cursor, CursorGrabMode, PresentMode},
 };
 use bevy_inspector_egui::quick::{
     WorldInspectorPlugin,
@@ -50,7 +50,12 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: String::from("Bevy Breakout!"),
-                mode: WindowMode::Fullscreen,
+                //mode: WindowMode::Fullscreen,
+                // Tells wasm to resize the window according to the available canvas
+                fit_canvas_to_parent: true,
+                // Tells wasm not to override default event handling, like F5, Ctrl+R etc.
+                prevent_default_event_handling: false,
+                window_theme: Some(WindowTheme::Dark),
                 present_mode: PresentMode::AutoVsync,
                 cursor: Cursor {
                     grab_mode: CursorGrabMode::Confined,
