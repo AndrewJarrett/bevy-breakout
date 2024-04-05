@@ -3,7 +3,7 @@ This is a personal experiment learning the Bevy game engine and building a "Brea
 
 # Play the Game
 Play the game by clicking the screenshot below.
-[![Screenshot of the breakout game](./resources/breakout.png)]](https://andrewjarrett.github.io/bevy-breakout)
+[![Screenshot of the breakout game](./resources/breakout.png)](https://andrewjarrett.github.io/bevy-breakout)
 
 # Why?
 The goals I have for this repo is just to be a fun playground to learn more about Bevy, ECS as a design pattern, and 2D and 3D game fundamentals.
