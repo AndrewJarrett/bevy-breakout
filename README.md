@@ -13,15 +13,17 @@ The goals I have for this repo is just to be a fun playground to learn more abou
 * Scoreboard with health display (-5 health every time the ball hits the bottom wall)
 * Implements Bloom to add some old school "glow" to the game
 * Splash and start menu added before launching the game
+* Export this to the web and serve up on GitHub pages
 
 # Possible Future Enhancements
-* Export this to the web and serve up on GitHub pages
+* Fix ball velocity so that it moves in discrete increments and has a max speed. Show speed in the scoreboard.
 * "Power up" blocks that can affect game mechanics like:
   * Slow down the ball velocity
   * Increase paddle speed
   * Health "pickups"
   * "Bombs" that can explode and destroy multiple blocks
   * "Clone" power up that can create two paddles with mirrored controls
+* Add level counter and randomize levels
 * Implement functions for sound/display settings
 * Implement some game music or sound effects
 * Consider possibly making a 3d-ish view of the game, with the same top-down view, but at a tilted angle so some of the depth comes through
