@@ -57,10 +57,12 @@ fn main() {
                 prevent_default_event_handling: false,
                 window_theme: Some(WindowTheme::Dark),
                 present_mode: PresentMode::AutoVsync,
+                /*
                 cursor: Cursor {
                     grab_mode: CursorGrabMode::Confined,
                     ..default()
                 },
+                */
                 ..default()
             }),
             ..default()
