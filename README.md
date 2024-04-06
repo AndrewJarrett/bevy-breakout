@@ -2,7 +2,6 @@
 This is a personal experiment learning the Bevy game engine and building a "Breakout" based clone as a way to apply some concepts. Example code was used from the great Bevy examples in the Bevy repo and cobbled together. 
 
 # Play the Game
-Play the game by clicking the screenshot below.
 [![Screenshot of the breakout game](./resources/breakout.png)](https://andrewjarrett.github.io/bevy-breakout)
 
 # Why?
