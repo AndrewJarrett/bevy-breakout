@@ -190,14 +190,14 @@ fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         align_items: AlignItems::Center,
                         ..default()
                     },
-                    background_color: Color::CRIMSON.into(),
+                    background_color: Color::BLACK.into(),
                     ..default()
                 })
                 .with_children(|parent| {
                     // Display the game name
                     parent.spawn(
                         TextBundle::from_section(
-                            "Bevy Game Menu UI",
+                            "Bevy Breakout",
                             TextStyle {
                                 font_size: 80.0,
                                 color: TEXT_COLOR,
