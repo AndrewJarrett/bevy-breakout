@@ -1,10 +1,18 @@
 use bevy::{
     prelude::*,
     sprite::collide_aabb::{collide, Collision},
-    sprite::MaterialMesh2dBundle
+    sprite::MaterialMesh2dBundle,
+    input::common_conditions::input_toggle_active,
+};
+use bevy_inspector_egui::quick::{
+    StateInspectorPlugin,
+    ResourceInspectorPlugin,
 };
 
-use super::GameState;
+use super::{
+    despawn_screen, GameState,
+    menu::MenuState,
+};
 
 // Paddle constants
 const PADDLE_SIZE: Vec3 = Vec3::new(120.0, 20.0, 0.0);
@@ -52,19 +60,37 @@ const BACKGROUND_COLOR: Color = Color::BLACK;
 
 pub struct BreakoutPlugin;
 
+#[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States, Reflect)]
+pub enum PausedState {
+    #[default]
+    Nil,
+    Running,
+    Paused,
+}
+
 impl Plugin for BreakoutPlugin {
     fn build(&self, app: &mut App) {
         app
+            // Declare the paused state
+            .add_state::<PausedState>()
+            // Insert as resource the initial value for the settings resources
+            .register_type::<PausedState>()
+            .add_plugins((
+                ResourceInspectorPlugin::<Scoreboard>::default().run_if(
+                    input_toggle_active(false, KeyCode::Grave)
+                ),
+                StateInspectorPlugin::<PausedState>::default().run_if(
+                    input_toggle_active(false, KeyCode::Grave)
+                ),
+            ))
             .add_event::<CollisionEvent>()
             .insert_resource(Scoreboard {
                 score: 0,
                 health: 100,
             })
             .insert_resource(ClearColor(BACKGROUND_COLOR))
-            .add_systems(OnEnter(GameState::Game), setup)
-            .add_systems(Update, bevy::window::close_on_esc
-                         .run_if(in_state(GameState::Game)))
-            //.add_systems(OnExit(GameState::Game), despawn_screen::<OnGameScreen>);
+            .add_systems(OnEnter(GameState::NewGame), setup)
+            .add_systems(Update, pause.run_if(not(in_state(PausedState::Nil))))
             //.add_systems(Startup, setup)
             .add_systems(
                 FixedUpdate,
@@ -75,9 +101,10 @@ impl Plugin for BreakoutPlugin {
                     update_scoreboard,
                     check_blocks,
                     check_health,
-                ).chain().run_if(in_state(GameState::Game))
-            );
-            //.add_systems(Update, bevy::window::close_on_esc);
+                ).chain()
+                    .run_if(in_state(PausedState::Running))
+            )
+            .add_systems(OnEnter(GameState::GameOver), (despawn_screen::<OnGameScreen>, game_over));
     }
 }
 
@@ -194,29 +221,8 @@ fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    mut game_state: ResMut<NextState<GameState>>,
 ) {
-    /*
-    commands.spawn((
-        Camera2dBundle {
-            camera: Camera {
-                hdr: true, // Required for bloom
-                ..default()
-            },
-            tonemapping: Tonemapping::TonyMcMapface, // Use tonemapping that desaturates to white
-            ..default()
-        },
-        // Enable bloom for the camera
-        BloomSettings {
-            intensity: 0.5,
-            low_frequency_boost: 2.0,
-            low_frequency_boost_curvature: 0.3,
-            high_pass_frequency: 0.3,
-            composite_mode: BloomCompositeMode::Additive,
-            ..default()
-        }
-    ));
-    */
-
     // Create the Ball
     commands.spawn(
         (MaterialMesh2dBundle {
@@ -227,7 +233,8 @@ fn setup(
         },
         Ball,
         Velocity(INITIAL_BALL_DIRECTION.normalize() * BALL_SPEED),
-        Name::new("Ball")
+        Name::new("Ball"),
+        OnGameScreen,
     ));
 
     // Create the Paddle
@@ -246,7 +253,8 @@ fn setup(
         },
         Paddle,
         Collider,
-        Name::new("Paddle")
+        Name::new("Paddle"),
+        OnGameScreen,
     ));
 
     // Add scoreboard
@@ -285,21 +293,30 @@ fn setup(
             left: SCOREBOARD_TEXT_PADDING,
             ..default()
         }),
-        Name::new("Scoreboard")
+        Name::new("Scoreboard"),
+        OnGameScreen,
     ));
 
     // Create the walls
     commands.spawn((WallBundle::new(WallLocation::Left),
-        Name::new("Left Wall")));
+        Name::new("Left Wall"),
+        OnGameScreen,));
     commands.spawn((WallBundle::new(WallLocation::Right),
-        Name::new("Right Wall")));
+        Name::new("Right Wall"),
+        OnGameScreen,));
     commands.spawn((WallBundle::new(WallLocation::Top),
-        Name::new("Top Wall")));
+        Name::new("Top Wall"),
+        OnGameScreen,));
     commands.spawn((WallBundle::new(WallLocation::Bottom),
-        Name::new("Bottom Wall")));
+        Name::new("Bottom Wall"),
+        OnGameScreen,));
 
     // Generate all the blocks
     generate_blocks(commands);
+
+    // Finally, transition to the running game state (NewGame is just for starting a brand new
+    // game)
+    game_state.set(GameState::InGame);
 }
 
 fn apply_velocity(
@@ -420,12 +437,23 @@ fn check_blocks(
 }
 
 fn check_health(
-    scoreboard: Res<Scoreboard>
+    scoreboard: Res<Scoreboard>,
+    mut game_state: ResMut<NextState<GameState>>,
+    mut paused_state: ResMut<NextState<PausedState>>,
 ) {
     if scoreboard.health <= 0 {
         // Game over!
-        panic!("You died!");
+        paused_state.set(PausedState::Nil);
+        game_state.set(GameState::GameOver);
     }
+}
+
+fn game_over(
+    mut game_state: ResMut<NextState<GameState>>,
+    mut menu_state: ResMut<NextState<MenuState>>,
+) {
+    game_state.set(GameState::Menu);
+    menu_state.set(MenuState::GameOver);
 }
         
 fn move_paddle(
@@ -501,8 +529,33 @@ fn generate_blocks(mut commands: Commands) {
                 },
                 Block,
                 Collider,
-                Name::new("Block")
+                Name::new("Block"),
+                OnGameScreen,
             ));
+        }
+    }
+}
+
+fn pause(
+    paused_state: Res<State<PausedState>>,
+    mut next_state: ResMut<NextState<PausedState>>,
+    mut game_state: ResMut<NextState<GameState>>,
+    mut menu_state: ResMut<NextState<MenuState>>,
+    keys: Res<Input<KeyCode>>,
+) {
+    if keys.just_pressed(KeyCode::Escape) {
+        match paused_state.get() {
+            PausedState::Paused => {
+                next_state.set(PausedState::Running);
+                game_state.set(GameState::InGame);
+                menu_state.set(MenuState::Disabled);
+            },
+            PausedState::Running => {
+                next_state.set(PausedState::Paused);
+                game_state.set(GameState::Menu);
+                menu_state.set(MenuState::Main);
+            },
+            _ => {},
         }
     }
 }
