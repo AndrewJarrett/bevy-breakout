@@ -222,7 +222,12 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut game_state: ResMut<NextState<GameState>>,
+    mut scoreboard: ResMut<Scoreboard>,
 ) {
+    // Ensure the scoreboard is reset with each new game
+    scoreboard.score = 0;
+    scoreboard.health = 100;
+
     // Create the Ball
     commands.spawn(
         (MaterialMesh2dBundle {
