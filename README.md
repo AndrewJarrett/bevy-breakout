@@ -14,6 +14,8 @@ The goals I have for this repo is just to be a fun playground to learn more abou
 * Implements Bloom to add some old school "glow" to the game
 * Splash and start menu added before launching the game
 * Export this to the web and serve up on GitHub pages
+* Pause menu
+* Game over menu
 
 # Possible Future Enhancements
 * Fix ball velocity so that it moves in discrete increments and has a max speed. Show speed in the scoreboard.
