@@ -1,11 +1,19 @@
-use bevy::{app::AppExit, prelude::*};
+use bevy::{
+    app::AppExit,
+    prelude::*,
+    input::common_conditions::input_toggle_active,
+};
+use bevy_inspector_egui::quick::StateInspectorPlugin;
 
 use super::{despawn_screen, DisplayQuality, GameState, Volume, TEXT_COLOR};
+
+use crate::breakout::PausedState;
 
 // This plugin manages the menu, with 5 different screens:
 // - a main menu with "New Game", "Settings", "Quit"
 // - a settings menu with two submenus and a back button
 // - two settings screen with a setting that can be set and a back button
+// - a game over screen with an option to start a new game
 pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
@@ -15,9 +23,19 @@ impl Plugin for MenuPlugin {
             // entering the `GameState::Menu` state.
             // Current screen in the menu is handled by an independent state from `GameState`
             .add_state::<MenuState>()
+            .register_type::<MenuState>()
+            .add_plugins((
+                StateInspectorPlugin::<MenuState>::default().run_if(
+                    input_toggle_active(false, KeyCode::Grave)
+                ),
+            ))
             .add_systems(OnEnter(GameState::Menu), menu_setup)
             // Systems to handle the main menu screen
             .add_systems(OnEnter(MenuState::Main), main_menu_setup)
+            .add_systems(
+                Update,
+                menu_update.run_if(in_state(MenuState::Main))
+            )
             .add_systems(OnExit(MenuState::Main), despawn_screen::<OnMainMenuScreen>)
             // Systems to handle the settings menu screen
             .add_systems(OnEnter(MenuState::Settings), settings_menu_setup)
@@ -25,6 +43,9 @@ impl Plugin for MenuPlugin {
                 OnExit(MenuState::Settings),
                 despawn_screen::<OnSettingsMenuScreen>,
             )
+            // Systems to handle the game over screen
+            .add_systems(OnEnter(MenuState::GameOver), game_over_menu_setup)
+            .add_systems(OnExit(MenuState::GameOver), despawn_screen::<OnGameOverMenuScreen>)
             // Systems to handle the display settings screen
             .add_systems(
                 OnEnter(MenuState::SettingsDisplay),
@@ -51,25 +72,30 @@ impl Plugin for MenuPlugin {
             // Common systems to all screens that handles buttons behavior
             .add_systems(
                 Update,
-                (menu_action, button_system).run_if(in_state(GameState::Menu)),
+                (menu_action, button_system).run_if(in_state(GameState::Menu))
             );
     }
 }
 
 // State used for the current menu screen
-#[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
-enum MenuState {
+#[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States, Reflect)]
+pub enum MenuState {
     Main,
     Settings,
     SettingsDisplay,
     SettingsSound,
     #[default]
     Disabled,
+    GameOver,
 }
 
 // Tag component used to tag entities added on the main menu screen
 #[derive(Component)]
 struct OnMainMenuScreen;
+
+// Tag component used to tag the "New Game" or "Resume" button for updating
+#[derive(Component)]
+struct NewOrResumeText;
 
 // Tag component used to tag entities added on the settings menu screen
 #[derive(Component)]
@@ -82,6 +108,10 @@ struct OnDisplaySettingsMenuScreen;
 // Tag component used to tag entities added on the sound settings menu screen
 #[derive(Component)]
 struct OnSoundSettingsMenuScreen;
+
+// Tag component used to tag entities added on the game over menu screen
+#[derive(Component)]
+struct OnGameOverMenuScreen;
 
 const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
@@ -140,11 +170,20 @@ fn setting_button<T: Resource + Component + PartialEq + Copy>(
     }
 }
 
-fn menu_setup(mut menu_state: ResMut<NextState<MenuState>>) {
-    menu_state.set(MenuState::Main);
+fn menu_setup(
+    menu_state: Res<State<MenuState>>,
+    mut next_menu_state: ResMut<NextState<MenuState>>,
+) {
+    match menu_state.get() {
+        MenuState::Disabled => next_menu_state.set(MenuState::Main),
+        _ => {},
+    }
 }
 
-fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn main_menu_setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
     // Common style for all buttons on the screen
     let button_style = Style {
         width: Val::Px(250.0),
@@ -230,9 +269,11 @@ fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                                 image: UiImage::new(icon),
                                 ..default()
                             });
-                            parent.spawn(TextBundle::from_section(
-                                "New Game",
-                                button_text_style.clone(),
+                            parent.spawn((TextBundle::from_section(
+                                    "New Game",
+                                    button_text_style.clone(),
+                                ),
+                                NewOrResumeText,
                             ));
                         });
                     parent
@@ -278,6 +319,18 @@ fn main_menu_setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         });
 }
 
+fn menu_update(
+    mut button_query: Query<&mut Text, With<NewOrResumeText>>,
+    paused_state: Res<State<PausedState>>,
+) {
+    for mut text in &mut button_query {
+        text.sections[0].value = match paused_state.get() {
+            PausedState::Paused => "Resume".into(),
+            _ => "New Game".into(),
+        }
+    }
+}
+
 fn settings_menu_setup(mut commands: Commands) {
     let button_style = Style {
         width: Val::Px(200.0),
@@ -316,7 +369,7 @@ fn settings_menu_setup(mut commands: Commands) {
                         align_items: AlignItems::Center,
                         ..default()
                     },
-                    background_color: Color::CRIMSON.into(),
+                    background_color: Color::BLACK.into(),
                     ..default()
                 })
                 .with_children(|parent| {
@@ -382,7 +435,7 @@ fn display_settings_menu_setup(mut commands: Commands, display_quality: Res<Disp
                         align_items: AlignItems::Center,
                         ..default()
                     },
-                    background_color: Color::CRIMSON.into(),
+                    background_color: Color::BLACK.into(),
                     ..default()
                 })
                 .with_children(|parent| {
@@ -394,7 +447,7 @@ fn display_settings_menu_setup(mut commands: Commands, display_quality: Res<Disp
                                 align_items: AlignItems::Center,
                                 ..default()
                             },
-                            background_color: Color::CRIMSON.into(),
+                            background_color: Color::BLACK.into(),
                             ..default()
                         })
                         .with_children(|parent| {
@@ -486,7 +539,7 @@ fn sound_settings_menu_setup(mut commands: Commands, volume: Res<Volume>) {
                         align_items: AlignItems::Center,
                         ..default()
                     },
-                    background_color: Color::CRIMSON.into(),
+                    background_color: Color::BLACK.into(),
                     ..default()
                 })
                 .with_children(|parent| {
@@ -496,7 +549,7 @@ fn sound_settings_menu_setup(mut commands: Commands, volume: Res<Volume>) {
                                 align_items: AlignItems::Center,
                                 ..default()
                             },
-                            background_color: Color::CRIMSON.into(),
+                            background_color: Color::BLACK.into(),
                             ..default()
                         })
                         .with_children(|parent| {
@@ -538,6 +591,100 @@ fn sound_settings_menu_setup(mut commands: Commands, volume: Res<Volume>) {
         });
 }
 
+fn game_over_menu_setup(mut commands: Commands) {
+    let button_style = Style {
+        width: Val::Px(200.0),
+        height: Val::Px(65.0),
+        margin: UiRect::all(Val::Px(20.0)),
+        justify_content: JustifyContent::Center,
+        align_items: AlignItems::Center,
+        ..default()
+    };
+
+    let button_text_style = TextStyle {
+        font_size: 40.0,
+        color: TEXT_COLOR,
+        ..default()
+    };
+
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    ..default()
+                },
+                ..default()
+            },
+            OnGameOverMenuScreen,
+        ))
+        .with_children(|parent| {
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    background_color: Color::BLACK.into(),
+                    ..default()
+                })
+                .with_children(|parent| {
+                    // Display the game name
+                    parent.spawn(
+                        TextBundle::from_section(
+                            "Game Over!",
+                            TextStyle {
+                                font_size: 80.0,
+                                color: TEXT_COLOR,
+                                ..default()
+                            },
+                        )
+                        .with_style(Style {
+                            margin: UiRect::all(Val::Px(50.0)),
+                            ..default()
+                        }),
+                    );
+
+                    parent
+                        .spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Column,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            background_color: Color::BLACK.into(),
+                            ..default()
+                        })
+                        .with_children(|parent| {
+                            for (action, text) in [
+                                (MenuButtonAction::Play, "New Game"),
+                                (MenuButtonAction::Quit, "Quit"),
+                            ] {
+                                parent
+                                    .spawn((
+                                        ButtonBundle {
+                                            style: button_style.clone(),
+                                            background_color: NORMAL_BUTTON.into(),
+                                            ..default()
+                                        },
+                                        action,
+                                    ))
+                                    .with_children(|parent| {
+                                        parent.spawn(TextBundle::from_section(
+                                            text,
+                                            button_text_style.clone(),
+                                        ));
+                                    });
+                            }
+                        });
+                });
+        });
+}
+
 fn menu_action(
     interaction_query: Query<
         (&Interaction, &MenuButtonAction),
@@ -546,6 +693,8 @@ fn menu_action(
     mut app_exit_events: EventWriter<AppExit>,
     mut menu_state: ResMut<NextState<MenuState>>,
     mut game_state: ResMut<NextState<GameState>>,
+    paused_state: Res<State<PausedState>>,
+    mut next_paused_state: ResMut<NextState<PausedState>>,
 ) {
     for (interaction, menu_button_action) in &interaction_query {
         if *interaction == Interaction::Pressed {
@@ -554,7 +703,11 @@ fn menu_action(
                     app_exit_events.send(AppExit);
                 }
                 MenuButtonAction::Play => {
-                    game_state.set(GameState::Game);
+                    next_paused_state.set(PausedState::Running);
+                    match paused_state.get() {
+                        PausedState::Nil => game_state.set(GameState::NewGame), //  Handle starting a new game
+                        _ => game_state.set(GameState::InGame),
+                    }
                     menu_state.set(MenuState::Disabled);
                 }
                 MenuButtonAction::Settings => menu_state.set(MenuState::Settings),

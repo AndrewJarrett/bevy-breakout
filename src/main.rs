@@ -9,15 +9,16 @@ use bevy::{
         tonemapping::Tonemapping
     },
     input::common_conditions::input_toggle_active,
-    window::{Window, WindowMode, WindowTheme, Cursor, CursorGrabMode, PresentMode},
+    window::{Window, WindowTheme, PresentMode},
+    //window::{Window, WindowMode, WindowTheme, Cursor, CursorGrabMode, PresentMode},
 };
 use bevy_inspector_egui::quick::{
     WorldInspectorPlugin,
-    ResourceInspectorPlugin
+    StateInspectorPlugin,
 };
 
 use crate::{
-    breakout::{BreakoutPlugin, Scoreboard},
+    breakout::BreakoutPlugin,
     splash::SplashPlugin,
     menu::MenuPlugin,
 };
@@ -25,12 +26,14 @@ use crate::{
 pub const TEXT_COLOR: Color = Color::WHITE;
 
 // Enum that will be used as a global state for the game
-#[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
+#[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States, Reflect)]
 pub enum GameState {
     #[default]
     Splash,
     Menu,
-    Game,
+    NewGame,
+    InGame,
+    GameOver,
 }
 
 // One of the two settings that can be set through the menu. It will be a resource in the app
@@ -57,26 +60,27 @@ fn main() {
                 prevent_default_event_handling: false,
                 window_theme: Some(WindowTheme::Dark),
                 present_mode: PresentMode::AutoVsync,
+                /*
                 cursor: Cursor {
                     grab_mode: CursorGrabMode::Confined,
                     ..default()
                 },
+                */
                 ..default()
             }),
             ..default()
         }))
+        // Declare the game state, whose starting value is determined by the `Default` trait
+        .add_state::<GameState>()
         .add_plugins((
             SplashPlugin, MenuPlugin, BreakoutPlugin, 
             WorldInspectorPlugin::default().run_if(
                 input_toggle_active(false, KeyCode::Grave)
             ),
-            ResourceInspectorPlugin::<Scoreboard>::default().run_if(
+            StateInspectorPlugin::<GameState>::default().run_if(
                 input_toggle_active(false, KeyCode::Grave)
-            )
+            ),
         ))
-        // Declare the game state, whose starting value is determined by the `Default` trait
-        .add_state::<GameState>()
-        // Insert as resource the initial value for the settings resources
         .insert_resource(DisplayQuality::Medium)
         .insert_resource(Volume(7))
         .add_systems(Startup, app_setup)
