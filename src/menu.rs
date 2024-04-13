@@ -32,6 +32,10 @@ impl Plugin for MenuPlugin {
             .add_systems(OnEnter(GameState::Menu), menu_setup)
             // Systems to handle the main menu screen
             .add_systems(OnEnter(MenuState::Main), main_menu_setup)
+            .add_systems(
+                Update,
+                menu_update.run_if(in_state(MenuState::Main))
+            )
             .add_systems(OnExit(MenuState::Main), despawn_screen::<OnMainMenuScreen>)
             // Systems to handle the settings menu screen
             .add_systems(OnEnter(MenuState::Settings), settings_menu_setup)
@@ -88,6 +92,10 @@ pub enum MenuState {
 // Tag component used to tag entities added on the main menu screen
 #[derive(Component)]
 struct OnMainMenuScreen;
+
+// Tag component used to tag the "New Game" or "Resume" button for updating
+#[derive(Component)]
+struct NewOrResumeText;
 
 // Tag component used to tag entities added on the settings menu screen
 #[derive(Component)]
@@ -174,7 +182,6 @@ fn menu_setup(
 
 fn main_menu_setup(
     mut commands: Commands,
-    paused_state: Res<State<PausedState>>,
     asset_server: Res<AssetServer>,
 ) {
     // Common style for all buttons on the screen
@@ -262,12 +269,11 @@ fn main_menu_setup(
                                 image: UiImage::new(icon),
                                 ..default()
                             });
-                            parent.spawn(TextBundle::from_section(
-                                match paused_state.get() {
-                                    PausedState::Paused => "Resume",
-                                    _ => "New Game",
-                                },
-                                button_text_style.clone(),
+                            parent.spawn((TextBundle::from_section(
+                                    "New Game",
+                                    button_text_style.clone(),
+                                ),
+                                NewOrResumeText,
                             ));
                         });
                     parent
@@ -311,6 +317,18 @@ fn main_menu_setup(
                         });
                 });
         });
+}
+
+fn menu_update(
+    mut button_query: Query<&mut Text, With<NewOrResumeText>>,
+    paused_state: Res<State<PausedState>>,
+) {
+    for mut text in &mut button_query {
+        text.sections[0].value = match paused_state.get() {
+            PausedState::Paused => "Resume".into(),
+            _ => "New Game".into(),
+        }
+    }
 }
 
 fn settings_menu_setup(mut commands: Commands) {

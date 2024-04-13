@@ -551,14 +551,14 @@ fn pause(
     if keys.just_pressed(KeyCode::Escape) {
         match paused_state.get() {
             PausedState::Paused => {
-                next_state.set(PausedState::Running);
                 game_state.set(GameState::InGame);
                 menu_state.set(MenuState::Disabled);
+                next_state.set(PausedState::Running);
             },
             PausedState::Running => {
-                next_state.set(PausedState::Paused);
                 game_state.set(GameState::Menu);
                 menu_state.set(MenuState::Main);
+                next_state.set(PausedState::Paused);
             },
             _ => {},
         }
