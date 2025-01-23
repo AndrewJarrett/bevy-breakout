@@ -87,6 +87,7 @@ impl Plugin for BreakoutPlugin {
             .insert_resource(Scoreboard {
                 score: 0,
                 health: 100,
+                speed: 0,
             })
             .insert_resource(ClearColor(BACKGROUND_COLOR))
             .add_systems(OnEnter(GameState::NewGame), setup)
@@ -132,9 +133,16 @@ struct CollisionEvent;
 
 #[derive(Resource, Reflect, Default)]
 #[reflect(Resource)]
+pub struct Speed {
+    level: u8,
+}
+
+#[derive(Resource, Reflect, Default)]
+#[reflect(Resource)]
 pub struct Scoreboard {
     score: usize,
     health: usize,
+    speed: u8,
 }
 
 #[derive(Component)]
@@ -226,6 +234,7 @@ fn setup(
 ) {
     // Ensure the scoreboard is reset with each new game
     scoreboard.score = 0;
+    scoreboard.speed = 0;
     scoreboard.health = 100;
 
     // Create the Ball
